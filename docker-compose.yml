@@ -1,0 +1,16 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: unsia-library-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: unsia
+      MONGO_INITDB_ROOT_PASSWORD: unsia_secret
+      MONGO_INITDB_DATABASE: unsia_library
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
