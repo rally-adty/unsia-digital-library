@@ -1,0 +1,748 @@
+{
+  "info": {
+    "name": "Secure UNSIA Digital Library API",
+    "description": "Pengujian endpoint REST API perpustakaan digital UNSIA, mencakup skenario berhasil dan gagal. Jalankan folder '1. Autentikasi' lebih dulu karena token login disimpan otomatis ke variabel {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "bookId", "value": "" },
+    { "key": "memberId", "value": "" },
+    { "key": "loanId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Autentikasi",
+      "item": [
+        {
+          "name": "Register - berhasil (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Mengembalikan token', () => pm.expect(pm.response.json().data.token).to.be.a('string'));",
+                  "pm.test('Password tidak ikut dikirim', () => pm.expect(pm.response.text()).to.not.include('password\\\":'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Petugas Baru\",\n  \"email\": \"petugas.baru@unsia.ac.id\",\n  \"password\": \"rahasia1\",\n  \"role\": \"petugas\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register - validasi gagal (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Ada daftar error validasi', () => pm.expect(pm.response.json().errors).to.be.an('array').that.is.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ab\",\n  \"email\": \"bukan-email\",\n  \"password\": \"123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register - email duplikat (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin Duplikat\",\n  \"email\": \"admin@unsia.ac.id\",\n  \"password\": \"rahasia1\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login - berhasil (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Token diterima', () => pm.expect(body.data.token).to.be.a('string'));",
+                  "pm.collectionVariables.set('token', body.data.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@unsia.ac.id\",\n  \"password\": \"admin123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login - password salah (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Pesan netral, tidak membocorkan email terdaftar', () => pm.expect(pm.response.json().message).to.eql('Email atau password salah'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@unsia.ac.id\",\n  \"password\": \"password-salah\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Profil saya - berhasil (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Field password tidak ada', () => pm.expect(pm.response.json().data).to.not.have.property('password'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Protected Route",
+      "item": [
+        {
+          "name": "Tanpa token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Pesan token tidak disertakan', () => pm.expect(pm.response.json().message).to.include('token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] }
+          }
+        },
+        {
+          "name": "Token tidak valid (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer token.palsu.sekali" }],
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] }
+          }
+        },
+        {
+          "name": "Endpoint tidak dikenal (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/endpoint-tidak-ada", "host": ["{{baseUrl}}"], "path": ["endpoint-tidak-ada"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. CRUD Buku",
+      "item": [
+        {
+          "name": "Daftar buku (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Ada metadata paginasi', () => pm.expect(pm.response.json().meta).to.have.property('total'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/books?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["books"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "algoritma", "disabled": true },
+                { "key": "category", "value": "Informatika", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tambah buku - berhasil (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json().data;",
+                  "pm.test('Stok tersedia sama dengan stok awal', () => pm.expect(b.available).to.eql(b.stock));",
+                  "pm.collectionVariables.set('bookId', b._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Struktur Data dan Algoritma\",\n  \"author\": \"Robert Sedgewick\",\n  \"category\": \"Informatika\",\n  \"isbn\": \"9780321573513\",\n  \"publisher\": \"Addison-Wesley\",\n  \"year\": 2022,\n  \"stock\": 4\n}"
+            }
+          }
+        },
+        {
+          "name": "Tambah buku - validasi gagal (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Daftar field bermasalah disebutkan', () => pm.expect(pm.response.json().errors).to.be.an('array').that.is.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"author\": \"\",\n  \"category\": \"\",\n  \"isbn\": \"x\",\n  \"stock\": -1\n}"
+            }
+          }
+        },
+        {
+          "name": "Tambah buku - ISBN duplikat (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Buku Duplikat\",\n  \"author\": \"Penguji\",\n  \"category\": \"Informatika\",\n  \"isbn\": \"9780321573513\",\n  \"stock\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Ubah buku (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Stok terbarui', () => pm.expect(pm.response.json().data.stock).to.eql(6));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/books/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["books", "{{bookId}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Struktur Data dan Algoritma (Edisi Revisi)\",\n  \"stock\": 6\n}"
+            }
+          }
+        },
+        {
+          "name": "Buku tidak ditemukan (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/books/64b7f0000000000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["books", "64b7f0000000000000000000"]
+            }
+          }
+        },
+        {
+          "name": "ID salah format (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/books/bukan-id", "host": ["{{baseUrl}}"], "path": ["books", "bukan-id"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. CRUD Anggota",
+      "item": [
+        {
+          "name": "Daftar anggota aktif (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json().data;",
+                  "if (list.length) pm.collectionVariables.set('memberId', list[0]._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/members?status=aktif",
+              "host": ["{{baseUrl}}"],
+              "path": ["members"],
+              "query": [{ "key": "status", "value": "aktif" }]
+            }
+          }
+        },
+        {
+          "name": "Tambah anggota - berhasil (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 201 Created', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/members", "host": ["{{baseUrl}}"], "path": ["members"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberCode\": \"AGT-010\",\n  \"name\": \"Anggota Pengujian\",\n  \"email\": \"anggota.uji@student.unsia.ac.id\",\n  \"phone\": \"081234567810\",\n  \"faculty\": \"Ilmu Komputer\",\n  \"status\": \"aktif\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Tambah anggota - validasi gagal (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/members", "host": ["{{baseUrl}}"], "path": ["members"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberCode\": \"A\",\n  \"name\": \"ab\",\n  \"email\": \"bukan-email\",\n  \"phone\": \"123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Transaksi Peminjaman",
+      "item": [
+        {
+          "name": "Catat peminjaman - berhasil (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const due = new Date();",
+                  "due.setDate(due.getDate() + 14);",
+                  "pm.collectionVariables.set('dueDate', due.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const loan = pm.response.json().data;",
+                  "pm.test('Status awal dipinjam', () => pm.expect(loan.status).to.eql('dipinjam'));",
+                  "pm.test('Relasi buku & anggota ikut termuat', () => { pm.expect(loan.book).to.have.property('title'); pm.expect(loan.member).to.have.property('name'); });",
+                  "pm.collectionVariables.set('loanId', loan._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/loans", "host": ["{{baseUrl}}"], "path": ["loans"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book\": \"{{bookId}}\",\n  \"member\": \"{{memberId}}\",\n  \"dueDate\": \"{{dueDate}}\",\n  \"note\": \"Peminjaman uji coba\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cek stok berkurang (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json().data;",
+                  "pm.test('Tersedia berkurang satu dari stok', () => pm.expect(b.available).to.eql(b.stock - 1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/books/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["books", "{{bookId}}"] }
+          }
+        },
+        {
+          "name": "Peminjaman ganda ditolak (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Alasan dijelaskan', () => pm.expect(pm.response.json().message).to.include('belum mengembalikan'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/loans", "host": ["{{baseUrl}}"], "path": ["loans"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book\": \"{{bookId}}\",\n  \"member\": \"{{memberId}}\",\n  \"dueDate\": \"{{dueDate}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Jatuh tempo di masa lalu (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/loans", "host": ["{{baseUrl}}"], "path": ["loans"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book\": \"{{bookId}}\",\n  \"member\": \"{{memberId}}\",\n  \"dueDate\": \"2020-01-01T00:00:00.000Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Hapus buku yang sedang dipinjam (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Integritas data terjaga', () => pm.expect(pm.response.json().message).to.include('peminjaman aktif'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/books/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["books", "{{bookId}}"] }
+          }
+        },
+        {
+          "name": "Pengembalian buku (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const loan = pm.response.json().data;",
+                  "pm.test('Status menjadi dikembalikan', () => pm.expect(loan.status).to.eql('dikembalikan'));",
+                  "pm.test('Tanggal kembali terisi', () => pm.expect(loan.returnDate).to.not.eql(null));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/loans/{{loanId}}/return",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "{{loanId}}", "return"]
+            }
+          }
+        },
+        {
+          "name": "Pengembalian dua kali (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/loans/{{loanId}}/return",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "{{loanId}}", "return"]
+            }
+          }
+        },
+        {
+          "name": "Cek stok pulih (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json().data;",
+                  "pm.test('Tersedia kembali sama dengan stok', () => pm.expect(b.available).to.eql(b.stock));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/books/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["books", "{{bookId}}"] }
+          }
+        },
+        {
+          "name": "Daftar peminjaman (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/loans?status=dipinjam",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans"],
+              "query": [{ "key": "status", "value": "dipinjam" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Dashboard",
+      "item": [
+        {
+          "name": "Ringkasan dashboard (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Kartu ringkasan lengkap', () => { pm.expect(d.cards).to.have.property('totalBooks'); pm.expect(d.cards).to.have.property('totalMembers'); pm.expect(d.cards).to.have.property('totalLoans'); pm.expect(d.cards).to.have.property('availableBooks'); });",
+                  "pm.test('Data grafik tersedia', () => { pm.expect(d.charts.booksByCategory).to.be.an('array'); pm.expect(d.charts.loansPerMonth).to.have.lengthOf(6); pm.expect(d.charts.loanStatus).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/dashboard/summary", "host": ["{{baseUrl}}"], "path": ["dashboard", "summary"] }
+          }
+        },
+        {
+          "name": "Dashboard tanpa token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/dashboard/summary", "host": ["{{baseUrl}}"], "path": ["dashboard", "summary"] }
+          }
+        }
+      ]
+    }
+  ]
+}
